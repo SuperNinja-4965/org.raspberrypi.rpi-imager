@@ -46,14 +46,14 @@ modules:
     post-install:
       - desktop-file-edit --set-key=Exec --set-value='rpi-imager %u' "${FLATPAK_DEST}/share/applications/com.raspberrypi.rpi-imager.desktop"
       - install -Dm644 ../license.txt "${FLATPAK_DEST}/share/licenses/${FLATPAK_ID}/rpi-imager/license.txt"
-      - install -Dm644 _deps/xz-src/COPYING "${FLATPAK_DEST}/share/licenses/${FLATPAK_ID}/xz/COPYING"
-      - install -Dm644 _deps/xz-src/COPYING.0BSD "${FLATPAK_DEST}/share/licenses/${FLATPAK_ID}/xz/COPYING.0BSD"
-      - install -Dm644 _deps/zstd-src/LICENSE "${FLATPAK_DEST}/share/licenses/${FLATPAK_ID}/zstd/LICENSE"
-      - install -Dm644 _deps/nghttp2-src/COPYING "${FLATPAK_DEST}/share/licenses/${FLATPAK_ID}/nghttp2/COPYING"
-      - install -Dm644 _deps/zlib-src/LICENSE "${FLATPAK_DEST}/share/licenses/${FLATPAK_ID}/zlib/LICENSE"
-      - install -Dm644 _deps/libarchive-src/COPYING "${FLATPAK_DEST}/share/licenses/${FLATPAK_ID}/libarchive/COPYING"
-      - install -Dm644 _deps/curl-src/COPYING "${FLATPAK_DEST}/share/licenses/${FLATPAK_ID}/curl/COPYING"
-      - install -Dm644 _deps/libusb-src/COPYING "${FLATPAK_DEST}/share/licenses/${FLATPAK_ID}/libusb/COPYING"
+      - install -Dm644 ../_deps/xz-src/COPYING "${FLATPAK_DEST}/share/licenses/${FLATPAK_ID}/xz/COPYING"
+      - install -Dm644 ../_deps/xz-src/COPYING.0BSD "${FLATPAK_DEST}/share/licenses/${FLATPAK_ID}/xz/COPYING.0BSD"
+      - install -Dm644 ../_deps/zstd-src/LICENSE "${FLATPAK_DEST}/share/licenses/${FLATPAK_ID}/zstd/LICENSE"
+      - install -Dm644 ../_deps/nghttp2-src/COPYING "${FLATPAK_DEST}/share/licenses/${FLATPAK_ID}/nghttp2/COPYING"
+      - install -Dm644 ../_deps/zlib-src/LICENSE "${FLATPAK_DEST}/share/licenses/${FLATPAK_ID}/zlib/LICENSE"
+      - install -Dm644 ../_deps/libarchive-src/COPYING "${FLATPAK_DEST}/share/licenses/${FLATPAK_ID}/libarchive/COPYING"
+      - install -Dm644 ../_deps/curl-src/COPYING "${FLATPAK_DEST}/share/licenses/${FLATPAK_ID}/curl/COPYING"
+      - install -Dm644 ../_deps/libusb-src/COPYING "${FLATPAK_DEST}/share/licenses/${FLATPAK_ID}/libusb/COPYING"
     cleanup:
       - /lib/udev
     sources:
@@ -69,21 +69,21 @@ modules:
 
       # Downstream patches should not add a -dirty suffix to the pinned release.
       - type: patch
-        path: fix-package-version.patch
+        path: patches/fix-package-version.patch
 
       - type: patch
-        path: fix-appstream.patch
+        path: patches/fix-appstream.patch
 
       # Offline builds must still embed the bundled time-zone list.
       - type: patch
-        path: fix-offline-timezones.patch
+        path: patches/fix-offline-timezones.patch
 
       # Delegate block-device authorization and unmounting to host UDisks2
       - type: patch
-        path: fix-flatpak-authorization.patch
+        path: patches/code/fix-flatpak-authorization.patch
 
       - type: patch
-        path: fix-flatpak-desktop.patch
+        path: patches/fix-flatpak-desktop.patch
 
       # Pre-populate XZ/LZMA dependency
       - type: git
@@ -91,7 +91,6 @@ modules:
         tag: v5.8.3
         commit: 4b73f2ec19a99ef465282fbce633e8deb33691b3
         dest: src/_deps/xz-src
-        disable-submodules: true
 
       # Pre-populate zstd dependency
       - type: git
@@ -99,7 +98,6 @@ modules:
         tag: v1.5.7
         commit: f8745da6ff1ad1e7bab384bd1f9d742439278e99
         dest: src/_deps/zstd-src
-        disable-submodules: true
 
       # Pre-populate nghttp2 dependency
       - type: git
@@ -119,7 +117,6 @@ modules:
         commit: da607da739fa6047df13e66a2af6b8bec7c2a498
         tag: v1.3.2
         dest: src/_deps/zlib-src
-        disable-submodules: true
 
       # Pre-populate libarchive dependency
       - type: git
@@ -127,7 +124,6 @@ modules:
         tag: v3.8.7
         commit: ded82291ab41d5e355831b96b0e1ff49e24d8939
         dest: src/_deps/libarchive-src
-        disable-submodules: true
 
       # Pre-populate curl dependency
       - type: git
