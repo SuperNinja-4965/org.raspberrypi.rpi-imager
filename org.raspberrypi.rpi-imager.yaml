@@ -2,7 +2,7 @@ app-id: org.raspberrypi.rpi-imager
 runtime: org.kde.Platform
 runtime-version: '6.11'
 sdk: org.kde.Sdk
-command: start-rpi-imager
+command: rpi-imager
 rename-icon: rpi-imager
 rename-desktop-file: com.raspberrypi.rpi-imager.desktop
 rename-appdata-file: com.raspberrypi.rpi-imager.metainfo.xml
@@ -15,8 +15,6 @@ finish-args:
   - --socket=pulseaudio
   - --talk-name=org.freedesktop.Notifications
   - --system-talk-name=org.freedesktop.UDisks2
-  - --system-talk-name=org.freedesktop.PolicyKit1
-  - --talk-name=org.freedesktop.Flatpak
 modules:
   - name: rpi-imager
     build-options:
@@ -45,7 +43,7 @@ modules:
     subdir: src
     post-install:
       - desktop-file-edit --set-key=Exec --set-value='rpi-imager %u' "${FLATPAK_DEST}/share/applications/com.raspberrypi.rpi-imager.desktop"
-      - install -Dm644 ../license.txt "${FLATPAK_DEST}/share/licenses/${FLATPAK_ID}/rpi-imager/license.txt"
+      - install -Dm644 ../../license.txt "${FLATPAK_DEST}/share/licenses/${FLATPAK_ID}/rpi-imager/license.txt"
       - install -Dm644 ../_deps/xz-src/COPYING "${FLATPAK_DEST}/share/licenses/${FLATPAK_ID}/xz/COPYING"
       - install -Dm644 ../_deps/xz-src/COPYING.0BSD "${FLATPAK_DEST}/share/licenses/${FLATPAK_ID}/xz/COPYING.0BSD"
       - install -Dm644 ../_deps/zstd-src/LICENSE "${FLATPAK_DEST}/share/licenses/${FLATPAK_ID}/zstd/LICENSE"
@@ -66,6 +64,9 @@ modules:
           type: git
           tag-pattern: ^v([\d.]+)$
           is-main-source: true
+
+      - type: patch
+        path: patches/disable-telemetry.patch
 
       # Downstream patches should not add a -dirty suffix to the pinned release.
       - type: patch
@@ -109,7 +110,7 @@ modules:
 
       # Avoid rpi-imager's config.h shadowing nghttp2's generated config.h
       - type: patch
-        path: fix-nghttp2-config-header.patch
+        path: patches/code/fix-nghttp2-config-header.patch
 
       # Pre-populate zlib dependency - use specific commit hash
       - type: git
