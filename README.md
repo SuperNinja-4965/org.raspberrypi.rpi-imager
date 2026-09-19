@@ -24,3 +24,15 @@ Validate the package with:
 flatpak run --command=flatpak-builder-lint org.flatpak.Builder manifest org.raspberrypi.rpi-imager.yaml
 flatpak run --command=flatpak-builder-lint org.flatpak.Builder repo repo
 ```
+
+Run the regression checks after building with `--keep-build-dirs`:
+
+```sh
+./tests/run.sh
+flatpak-builder --run build org.raspberrypi.rpi-imager.yaml python3 tests/smoke.py
+```
+
+These require host flatpak-builder, binutils, Python 3, python3-dbus,
+python3-gi, and dbus-run-session. Tests inspect the packaged resources and Qt
+relocations, exercise a private mock UDisks2 service, and write/verify
+regular temporary files. They never write to physical disks.
