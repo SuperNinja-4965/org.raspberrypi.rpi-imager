@@ -4,6 +4,8 @@ runtime-version: '6.11'
 sdk: org.kde.Sdk
 command: start-rpi-imager
 rename-icon: rpi-imager
+rename-desktop-file: com.raspberrypi.rpi-imager.desktop
+rename-appdata-file: com.raspberrypi.rpi-imager.metainfo.xml
 finish-args:
   - --device=all
   - --share=ipc
@@ -11,20 +13,24 @@ finish-args:
   - --socket=wayland
   - --socket=fallback-x11
   - --socket=pulseaudio
-  - --filesystem=/media
-  - --filesystem=/run/media
-  - --talk-name=org.a11y.*
   - --talk-name=org.freedesktop.Notifications
   - --system-talk-name=org.freedesktop.UDisks2
   - --system-talk-name=org.freedesktop.PolicyKit1
   - --talk-name=org.freedesktop.Flatpak
 modules:
   - name: rpi-imager
+    build-options:
+      # Qt is built with reduced relocations. Compile the executable as PIC so
+      # exported Qt data (notably QCoreApplication::self) is not copy-relocated.
+      cflags: -fPIC
+      cxxflags: -fPIC
     config-opts:
       - -DENABLE_CHECK_VERSION:BOOL=OFF
       - -DENABLE_TELEMETRY:BOOL=OFF
       - -DCMAKE_BUILD_TYPE=RelWithDebInfo
       - -DFETCHCONTENT_FULLY_DISCONNECTED=ON
+      - -DGENERATE_TIMEZONES_FROM_IANA=OFF
+      - -DGENERATE_COUNTRIES_FROM_REGDB=OFF
       - -DFETCHCONTENT_SOURCE_DIR_XZ=../_deps/xz-src
       - -DFETCHCONTENT_SOURCE_DIR_ZSTD=../_deps/zstd-src
       - -DFETCHCONTENT_SOURCE_DIR_NGHTTP2=../_deps/nghttp2-src
@@ -32,39 +38,60 @@ modules:
       - -DFETCHCONTENT_SOURCE_DIR_LIBARCHIVE=../_deps/libarchive-src
       - -DFETCHCONTENT_SOURCE_DIR_CURL=../_deps/curl-src
       - -DFETCHCONTENT_SOURCE_DIR_LIBUSB=../_deps/libusb-src
+      - -DFETCHCONTENT_SOURCE_DIR_CURL=../_deps/curl-src
+      - -DFETCHCONTENT_SOURCE_DIR_LIBUSB=../_deps/libusb-src
     buildsystem: cmake-ninja
     builddir: true
     subdir: src
     post-install:
-      - rm ${FLATPAK_DEST}/share/metainfo/*.metainfo.xml
-      - install -Dm644 -t "${FLATPAK_DEST}/share/metainfo" "../../${FLATPAK_ID}.metainfo.xml"
-      - desktop-file-edit --set-key=Exec --set-value='/app/bin/start-rpi-imager %F' "${FLATPAK_DEST}/share/applications/org.raspberrypi.rpi-imager.desktop"
-      - install -Dm755 "../../host-exec-wrapper.sh" "${FLATPAK_DEST}/bin/host-exec-wrapper"
-      - ln -s /app/bin/host-exec-wrapper /app/bin/pkexec
-      - ln -s /app/bin/host-exec-wrapper /app/bin/gksu
-      - ln -s /app/bin/host-exec-wrapper /app/bin/gksudo
-      - ln -s /app/bin/host-exec-wrapper /app/bin/kdesu
-      - ln -s /app/bin/host-exec-wrapper /app/bin/kdesudo
-      - install -Dm755 "../../start-rpi-imager.sh" "${FLATPAK_DEST}/bin/start-rpi-imager"
+      - desktop-file-edit --set-key=Exec --set-value='rpi-imager %u' "${FLATPAK_DEST}/share/applications/com.raspberrypi.rpi-imager.desktop"
+      - install -Dm644 ../license.txt "${FLATPAK_DEST}/share/licenses/${FLATPAK_ID}/rpi-imager/license.txt"
+      - install -Dm644 _deps/xz-src/COPYING "${FLATPAK_DEST}/share/licenses/${FLATPAK_ID}/xz/COPYING"
+      - install -Dm644 _deps/xz-src/COPYING.0BSD "${FLATPAK_DEST}/share/licenses/${FLATPAK_ID}/xz/COPYING.0BSD"
+      - install -Dm644 _deps/zstd-src/LICENSE "${FLATPAK_DEST}/share/licenses/${FLATPAK_ID}/zstd/LICENSE"
+      - install -Dm644 _deps/nghttp2-src/COPYING "${FLATPAK_DEST}/share/licenses/${FLATPAK_ID}/nghttp2/COPYING"
+      - install -Dm644 _deps/zlib-src/LICENSE "${FLATPAK_DEST}/share/licenses/${FLATPAK_ID}/zlib/LICENSE"
+      - install -Dm644 _deps/libarchive-src/COPYING "${FLATPAK_DEST}/share/licenses/${FLATPAK_ID}/libarchive/COPYING"
+      - install -Dm644 _deps/curl-src/COPYING "${FLATPAK_DEST}/share/licenses/${FLATPAK_ID}/curl/COPYING"
+      - install -Dm644 _deps/libusb-src/COPYING "${FLATPAK_DEST}/share/licenses/${FLATPAK_ID}/libusb/COPYING"
+    cleanup:
+      - /lib/udev
     sources:
       - type: git
         url: https://github.com/raspberrypi/rpi-imager.git
-        tag: v2.0.10
-        commit: 467be3d3e88f5d83fa78c78788f6e6fdce61a47e
+        tag: v2.0.11.1
+        commit: f259e1c99007b8a84b4e0049f03f0c34050f38e0
+        disable-submodules: true
         x-checker-data:
-          type: json
-          url: https://api.github.com/repos/raspberrypi/rpi-imager/releases/latest
-          version-query: .tag_name | sub("^v"; "")
-          timestamp-query: .published_at
-          url-query: |
-            "https://github.com/raspberrypi/rpi-imager/archive/refs/tags/v" + $version + ".tar.gz"
+          type: git
+          tag-pattern: ^v([\d.]+)$
+          is-main-source: true
+
+      # Downstream patches should not add a -dirty suffix to the pinned release.
+      - type: patch
+        path: fix-package-version.patch
+
+      - type: patch
+        path: fix-appstream.patch
+
+      # Offline builds must still embed the bundled time-zone list.
+      - type: patch
+        path: fix-offline-timezones.patch
+
+      # Delegate block-device authorization and unmounting to host UDisks2
+      - type: patch
+        path: fix-flatpak-authorization.patch
+
+      - type: patch
+        path: fix-flatpak-desktop.patch
 
       # Pre-populate XZ/LZMA dependency
       - type: git
         url: https://github.com/tukaani-project/xz.git
-        tag: v5.8.2
-        commit: 3d078b52adbff566ccfc51067dfbf742ecf3ef86
+        tag: v5.8.3
+        commit: 4b73f2ec19a99ef465282fbce633e8deb33691b3
         dest: src/_deps/xz-src
+        disable-submodules: true
 
       # Pre-populate zstd dependency
       - type: git
@@ -72,6 +99,7 @@ modules:
         tag: v1.5.7
         commit: f8745da6ff1ad1e7bab384bd1f9d742439278e99
         dest: src/_deps/zstd-src
+        disable-submodules: true
 
       # Pre-populate nghttp2 dependency
       - type: git
@@ -79,6 +107,11 @@ modules:
         tag: v1.70.0 # - force push to a depencency branch caused this to break.
         #commit: 68cb6900fde14c77f0cd7add0e094a862960eb99
         dest: src/_deps/nghttp2-src
+        disable-submodules: true
+
+      # Avoid rpi-imager's config.h shadowing nghttp2's generated config.h
+      - type: patch
+        path: fix-nghttp2-config-header.patch
 
       # Pre-populate zlib dependency - use specific commit hash
       - type: git
@@ -86,70 +119,26 @@ modules:
         commit: da607da739fa6047df13e66a2af6b8bec7c2a498
         tag: v1.3.2
         dest: src/_deps/zlib-src
+        disable-submodules: true
 
       # Pre-populate libarchive dependency
       - type: git
         url: https://github.com/libarchive/libarchive.git
-        tag: v3.8.6
-        commit: 3a9249b4eeb2a101ca4e0d2b12e4007642bac126
+        tag: v3.8.7
+        commit: ded82291ab41d5e355831b96b0e1ff49e24d8939
         dest: src/_deps/libarchive-src
+        disable-submodules: true
 
-        # Pre-populate curl dependency
+      # Pre-populate curl dependency
       - type: git
         url: https://github.com/curl/curl.git
-        tag: curl-8_19_0
-        commit: 8c908d2d0a6d32abdedda2c52e90bd56ec76c24d
+        tag: curl-8_20_0
+        commit: a05f34973e6c4bb629d018f7cb51487be1c904d8
         dest: src/_deps/curl-src
 
-      - type: archive
-        url: https://github.com/libusb/libusb/releases/download/v1.0.29/libusb-1.0.29.tar.bz2
-        sha256: 5977fc950f8d1395ccea9bd48c06b3f808fd3c2c961b44b0c2e6e29fc3a70a85
+      # Pre-populate libusb dependency
+      - type: git
+        url: https://github.com/libusb/libusb.git
+        tag: v1.0.30
+        commit: 87a55632db62c9bdc58cd31d3ccfa673f1bb017f
         dest: src/_deps/libusb-src
-
-      - type: file
-        path: capital-cities.json
-        dest: src/
-
-      - type: file
-        url: https://data.iana.org/time-zones/releases/tzdata2025c.tar.gz
-        sha256: 4aa79e4effee53fc4029ffe5f6ebe97937282ebcdf386d5d2da91ce84142f957
-        dest: src/
-
-      - type: file
-        url: https://git.kernel.org/pub/scm/linux/kernel/git/wens/wireless-regdb.git/plain/db.txt?id=61a463705f02b617239969c269e4882bcb5af035
-        sha256: e8dfd39cfdf43fa6c55ecbff8b59103909b55118c61705299d4b81dfed712577
-        dest-filename: wireless-regdb.txt
-        dest: src/
-
-      - type: file
-        path: org.raspberrypi.rpi-imager.metainfo.xml
-
-      - type: file
-        path: host-exec-wrapper.sh
-
-      - type: file
-        path: start-rpi-imager.sh
-
-      - type: patch
-        path: rename_app_id.patch
-
-      - type: patch
-        path: diable_telemetry.patch
-
-      - type: patch
-        path: use_local_localisation_sources.patch
-
-      - type: patch
-        path: disable_LTO.patch
-
-      - type: patch
-        path: fix_zstd.patch
-
-      - type: patch
-        path: platform_quirks.patch
-
-      - type: patch
-        path: sudo_message.patch
-
-      #- type: patch
-      #  path: curl.patch
