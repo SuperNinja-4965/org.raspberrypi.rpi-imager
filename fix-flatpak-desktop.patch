@@ -1,0 +1,65 @@
+--- a/src/linux/platformquirks_linux.cpp
++++ b/src/linux/platformquirks_linux.cpp
+@@ -1773,6 +1773,10 @@
+ }
+ 
+ bool registerUriScheme() {
++    // The exported Flatpak desktop file already registers the URI handler.
++    if (FlatpakUDisks::active())
++        return true;
++
+     // $APPIMAGE (set by the AppImage runtime) or the resolved /proc/self/exe.
+     // %u makes the OS pass the rpi-imager:// callback URL as an argument.
+     const char* bundle = getBundlePath();
+--- a/src/main.cpp
++++ b/src/main.cpp
+@@ -236,6 +236,8 @@
+ 
+     app.setOrganizationName("Raspberry Pi");
+     app.setOrganizationDomain("raspberrypi.com");
++    if (!qEnvironmentVariableIsEmpty("FLATPAK_ID"))
++        app.setDesktopFileName(qEnvironmentVariable("FLATPAK_ID"));
+     app.setApplicationName("Raspberry Pi Imager");
+     app.setApplicationVersion(ImageWriter::staticVersion());
+     app.setWindowIcon(QIcon(":/icons/rpi-imager.ico"));
+@@ -493,15 +495,15 @@
+             QDBusInterface interface("org.freedesktop.DBus", "/org/freedesktop/DBus",
+                                     "org.freedesktop.DBus", bus);
+             QDBusReply<QStringList> reply = interface.call("ListNames");
+-            if (reply.isValid() && reply.value().contains("com.raspberrypi.rpi-imager"))
++            if (reply.isValid() && reply.value().contains("org.raspberrypi.rpi-imager"))
+             {
+                 // Another instance is running - send callback URL to it via D-Bus
+-                QDBusInterface iface("com.raspberrypi.rpi-imager", "/com/raspberrypi/rpi_imager",
+-                                   "com.raspberrypi.rpi-imager", bus);
++                QDBusInterface iface("org.raspberrypi.rpi-imager", "/com/raspberrypi/rpi_imager",
++                                   "org.raspberrypi.rpi-imager", bus);
+                 QDBusMessage msg = QDBusMessage::createMethodCall(
+-                    "com.raspberrypi.rpi-imager",
++                    "org.raspberrypi.rpi-imager",
+                     "/com/raspberrypi/rpi_imager",
+-                    "com.raspberrypi.rpi-imager",
++                    "org.raspberrypi.rpi-imager",
+                     "HandleUrl");
+                 msg << callbackUrl.toString();
+                 QDBusReply<void> callReply = bus.call(msg);
+@@ -550,7 +552,7 @@
+         UriHandlerAdaptor *adaptor = new UriHandlerAdaptor(&imageWriter, dbusObject);
+         if (bus.registerObject("/com/raspberrypi/rpi_imager", dbusObject))
+         {
+-            if (bus.registerService("com.raspberrypi.rpi-imager"))
++            if (bus.registerService("org.raspberrypi.rpi-imager"))
+             {
+                 qDebug() << "Registered D-Bus service for URI callbacks";
+             }
+--- a/src/linux/urihandler_dbus.h
++++ b/src/linux/urihandler_dbus.h
+@@ -16,7 +16,7 @@
+ class UriHandlerAdaptor : public QDBusAbstractAdaptor
+ {
+     Q_OBJECT
+-    Q_CLASSINFO("D-Bus Interface", "com.raspberrypi.rpi-imager")
++    Q_CLASSINFO("D-Bus Interface", "org.raspberrypi.rpi-imager")
+ 
+ public:
+     explicit UriHandlerAdaptor(ImageWriter *imageWriter, QObject *parent = nullptr);
