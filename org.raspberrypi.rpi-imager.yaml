@@ -66,6 +66,10 @@ modules:
       - type: patch
         path: fix-offline-timezones.patch
 
+      # Delegate block-device authorization and unmounting to host UDisks2
+      - type: patch
+        path: fix-flatpak-authorization.patch
+
       # Pre-populate XZ/LZMA dependency
       - type: git
         url: https://github.com/tukaani-project/xz.git
